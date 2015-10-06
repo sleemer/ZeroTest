@@ -11,24 +11,24 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace ZeroTransport
 {
     public class TcpSender<T> : IDisposable
     {
         private readonly IObservable<T> _source;
-        private readonly string _address;
         private CancellationDisposable _subscription;
         private TcpListener _listener;
 
         public TcpSender(IObservable<T> source, string address, int port)
         {
-            _source = source;
-            _address = address;
+			_source = source;
             _listener = new TcpListener(IPAddress.Parse(address), port);
         }
         public void Start()
         {
+			Console.WriteLine("Sender started on {0} thread.", Thread.CurrentThread.ManagedThreadId);
             _subscription = new CancellationDisposable();
             _listener.Start();
             Observable.FromAsync(() => _listener.AcceptTcpClientAsync())
@@ -49,7 +49,7 @@ namespace ZeroTransport
             try {
                 var watch = Stopwatch.StartNew();
                 Serializer.SerializeWithLengthPrefix(stream, packet, PrefixStyle.Fixed32);
-                Console.WriteLine("send time: {0}", watch.ElapsedMilliseconds);
+				Console.WriteLine("sent packet on {0:D2} it took {1}",Thread.CurrentThread.ManagedThreadId, watch.ElapsedMilliseconds);
             }
             catch (Exception ex) {
                 Console.WriteLine(ex.Message);

@@ -9,6 +9,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace ZeroTransport
 {
@@ -32,9 +33,9 @@ namespace ZeroTransport
         public void Start()
         {
             _subscription = Observable.FromAsync(() => _client.ConnectAsync(_host, _port))
-                .SubscribeOn(NewThreadScheduler.Default)
                 .ObserveOn(NewThreadScheduler.Default)
                 .Subscribe(_ => {
+					Console.WriteLine("Getting data from network on {0} thread.", Thread.CurrentThread.ManagedThreadId);
                     var stream = _client.GetStream();
                     while (true) {
                         try {
