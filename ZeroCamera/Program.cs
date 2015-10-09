@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Reactive.Linq;
 using ZeroTransport;
 
@@ -10,15 +11,23 @@ namespace ZeroCamera
         public static void Main(string[] args)
         {
             //string address = "ipc:///pictures-from-camera";
-            //string address = "tcp://localhost:9000";
-            string address = "127.0.0.1";
-            int port = 9000;
-			var img = new ImagePacket { Image = new byte[(2048 * 1080 * 24)/8], Timestamp = DateTime.Now };
+            string address = "tcp://localhost:9000";
+            //string address = "127.0.0.1";
+            //int port = 9000;
             Console.WriteLine("Camera working...");
-            var pictures = Observable.Interval(TimeSpan.FromMilliseconds(1000 / 60)).Select(_ => img);
-            using (var outPin = PinFactory.CreateOutPin(address, port, pictures)) {
-                outPin.Start();
-                Console.ReadKey();
+            var pictures = new FolderImageProvider(@"C:\Users\v_kovalev\Pictures").GetImageStream();
+            using (var outPin = (new ZeroFactory<ImagePacket>()).CreateOutPin(address, pictures)) {
+                outPin.Bind();
+                Console.WriteLine("started");
+                while (Console.ReadKey().Key != ConsoleKey.Escape) {
+                    if (outPin.State == PinState.Connected) {
+                        outPin.Unbind();
+                        Console.WriteLine("stopped");
+                    } else {
+                        outPin.Bind();
+                        Console.WriteLine("started");
+                    }
+                }
             }
         }
     }

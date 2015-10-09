@@ -1,0 +1,31 @@
+﻿<Window x:Class="ZeroMainWpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ZeroMainWpf"
+        mc:Ignorable="d"
+        Title="Client" Height="350" Width="600">
+    <TabControl>
+        <TabItem Header="ИЗОБРАЖЕНИЯ">
+            <Grid DataContext="{Binding ImageStreamClientViewModel}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="5">
+                    <TextBlock Text="IP:"/>
+                    <TextBox x:Name="ip" Width="100" Text="{Binding ServerIP, UpdateSourceTrigger=PropertyChanged}" Margin="5,0,0,0"/>
+                    <TextBlock Text="Port:" Margin="5,0,0,0"/>
+                    <TextBox x:Name="port" Width="50" Text="{Binding ServerPort, UpdateSourceTrigger=PropertyChanged}" Margin="5,0,0,0"/>
+                    <Button x:Name="connect" Content="Connect" Width="100" Margin="5,0,0,0" Command="{Binding ConnectCommand}" Height="20" VerticalAlignment="Bottom"/>
+                    <Button x:Name="disconnect" Content="Disconnect" Margin="5,0,0,0" Width="100" Command="{Binding DisconnectCommand}"/>
+                </StackPanel>                
+                <Border BorderThickness="1" BorderBrush="Black" Grid.Row="1" Margin="5,0,5,5">
+                    <Image x:Name="image" Source="{Binding CurrentImageFrame}"/>
+                </Border>
+                <TextBlock Text="{Binding FPS}" Grid.Row="1" Margin="20,15,5,5" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            </Grid>
+        </TabItem>        
+    </TabControl>
+</Window>
