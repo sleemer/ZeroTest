@@ -6,17 +6,23 @@ namespace Test
 {
 	public sealed class PauseTokenSource
 	{
-		private static Task _completed = Task.FromResult(true);
-		internal static Task Completed{get{ return _completed;}}
-		static PauseTokenSource(){
+		private static Task _completed = Task.FromResult (0);
+
+		internal static Task Completed{ get { return _completed; } }
+
+		static PauseTokenSource ()
+		{
 		}
 
 		private TaskCompletionSource<bool> _paused;
-		public bool IsPaused {
-			get{ return _paused != null;}
+
+		public bool IsPaused{ 
+			get{
+				return _paused != null;
+			}
 			set{
 				if (value) {
-					Interlocked.CompareExchange (ref _paused, new TaskCompletionSource<bool> (), null); 
+					Interlocked.CompareExchange (ref _paused, new TaskCompletionSource<bool> (), null);
 				} else {
 					while (true) {
 						var paused = _paused;
@@ -30,26 +36,32 @@ namespace Test
 				}
 			}
 		}
-		public PauseToken Token {
-			get{ return new PauseToken (this);}
-		}
-		internal Task WaitWhilePausedAsync(){
+
+		public PauseToken Token{ get{ return new PauseToken (this);} }
+
+		internal Task WaitWhilePausedAsync ()
+		{
 			var paused = _paused;
-			return paused == null
+			return _paused == null
 				? Completed
 				: paused.Task;
 		}
 	}
+
 	public sealed class PauseToken
 	{
 		private readonly PauseTokenSource _pts;
-		internal PauseToken(PauseTokenSource pts){
+
+		internal PauseToken (PauseTokenSource pts)
+		{
 			_pts = pts;
 		}
 
-		public bool IsPaused{ get{ return _pts.IsPaused;} }
-		public Task WaitWhilePausedAsync(){
-			return _pts.IsPaused
+		public bool IsPaused{ get { return _pts.IsPaused; } }
+
+		public Task WaitWhilePausedAsync ()
+		{
+			return IsPaused
 				? _pts.WaitWhilePausedAsync ()
 				: PauseTokenSource.Completed;
 		}

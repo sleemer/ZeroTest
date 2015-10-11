@@ -5,22 +5,24 @@ namespace Test
 {
 	public sealed class QuickSort<T>
 	{
+		private static Random _rnd = new Random ();
 		private readonly IComparer<T> _comparer;
-		private static Random _rnd = new Random();
 
 		public QuickSort (IComparer<T> comparer = null)
 		{
 			_comparer = comparer ?? Comparer<T>.Default;
 		}
 
-		public void Sort(T[] array){
+		public void Sort (T[] array)
+		{
 			if (array == null) {
 				throw new ArgumentNullException ("array");
 			}
+
 			Sort (array, 0, array.Length - 1);
 		}
 
-		private void Sort(T[] array, int left, int right)
+		private void Sort (T[] array, int left, int right)
 		{
 			if (left < right) {
 				var pivotIndex = _rnd.Next (left, right);
@@ -29,13 +31,15 @@ namespace Test
 				Sort (array, pivotIndex + 1, right);
 			}
 		}
-		private int Partition(T[] array, int left, int right, int pivotIndex){
-			T pivot = array [pivotIndex];
+
+		private int Partition (T[] array, int left, int right, int pivotIndex)
+		{
+			var pivot = array [pivotIndex];
 			Swap (array, pivotIndex, right);
 			pivotIndex = left;
-			for (int i = left; i < right; i++) {
-				if (_comparer.Compare (array [i], pivot) < 0) {
-					Swap (array, i, pivotIndex);
+			for (var index = left; index < right; index++) {
+				if (_comparer.Compare (array [index], pivot) > 0) {
+					Swap (array, index, pivotIndex);
 					pivotIndex++;
 				}
 			}
@@ -43,7 +47,7 @@ namespace Test
 			return pivotIndex;
 		}
 
-		private static void Swap(T[] array, int left, int right)
+		private static void Swap (T[] array, int left, int right)
 		{
 			if (left != right) {
 				T tmp = array [left];

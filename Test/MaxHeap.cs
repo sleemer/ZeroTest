@@ -6,71 +6,76 @@ namespace Test
 	public sealed class Heap<T>
 	{
 		private readonly IComparer<T> _comparer;
-		private T[] _store;
-
-		public int Count{ get; private set; }
+		private T[] _backstore;
 
 		public Heap (int length, IComparer<T> comparer = null)
 		{
-			_store = new T[length];
+			_backstore = new T[length];
 			_comparer = comparer ?? Comparer<T>.Default;
 		}
-
-		public Heap (T[] source, IComparer<T> comparer = null) : this (source.Length, comparer)
+		public Heap (T[] source, IComparer<T> comparer = null):this(source.Length, comparer)
 		{
 			foreach (var item in source) {
 				Add (item);
 			}
-			Count = source.Length;
 		}
 
+		public int Count{ get; private set; }
 		public void Add (T item)
 		{
-			if (item == null) {
-				throw new ArgumentNullException ("item");
-			}
-			if (Count == _store.Length) {
-				IncreaseStore ();
+			if (_backstore.Length == Count) {
+				IncreaseBackstore ();
 			}
 
-			_store [Count] = item;
-			int index = Count;
-			int parent = GetParentIndex (Count);
-			while (index > 0 && _comparer.Compare (_store [parent], _store [index]) < 0) {
-				Swap (_store, index, parent);
+			_backstore [Count] = item;
+			var index = Count;
+			var parent = GetParentIndex (index);
+			while (index > 0 && _comparer.Compare (_backstore [parent], _backstore [index]) < 0) {
+				Swap (index, parent);
 				index = parent;
 				parent = GetParentIndex (index);
 			}
-
 			Count++;
 		}
-
-		public T Remove ()
-		{
+		public T Remove(){
 			if (Count == 0) {
 				throw new InvalidOperationException ();
 			}
+			var item = _backstore [0];
 
-			var item = _store [0];
+			var index = 0;
+			_backstore [0] = _backstore [Count-1];
 			Count--;
-			if (Count > 0) {
-				_store [0] = _store [Count];
-				int index = 0;
-				int leftChild = index * 2 + 1;
-				if (leftChild < Count) {
-					int rightChild = index * 2 + 2;
-					int maxChild = GetMaxChildIndex (leftChild, rightChild);
-
-					while (leftChild < Count && _comparer.Compare (_store [index], _store [maxChild]) < 0) {
-						Swap (_store, index, maxChild);
-						index = maxChild;
-						leftChild = index * 2 + 1;
-						rightChild = index * 2 + 2;
-						maxChild = GetMaxChildIndex (leftChild, rightChild);
-					}
+			while (true) {
+				var leftChild = index * 2 + 1;
+				if (leftChild >= Count)
+					break;
+				var rightChild = leftChild + 1;
+				var maxChild = GetMaxChildIndex (leftChild, rightChild);
+				if (_comparer.Compare (_backstore [index], _backstore [maxChild]) >= 0) {
+					break;
 				}
+				Swap (index, maxChild);
+				index = maxChild;
 			}
+
 			return item;
+		}
+
+		private void IncreaseBackstore ()
+		{
+			var newStore = new T[_backstore.Length * 2];
+			_backstore.CopyTo (newStore, 0);
+			_backstore = newStore;
+		}
+
+		private void Swap (int left, int right)
+		{
+			if (left != right) {
+				var tmp = _backstore [left];
+				_backstore [left] = _backstore [right];
+				_backstore [right] = tmp;
+			}
 		}
 
 		private int GetParentIndex (int index)
@@ -78,27 +83,11 @@ namespace Test
 			return (index - 1) / 2;
 		}
 
-		private int GetMaxChildIndex (int left, int right)
+		private int GetMaxChildIndex (int leftChild, int rightChild)
 		{
-			return right >= Count || _comparer.Compare (_store [left], _store [right]) > 0
-				? left
-				: right;
-		}
-
-		private void IncreaseStore ()
-		{
-			var newStore = new T[_store.Length * 2];
-			_store.CopyTo (newStore, 0);
-			_store = newStore;
-		}
-
-		private static void Swap (T[] arrray, int left, int right)
-		{
-			if (left != right) {
-				var tmp = arrray [left];
-				arrray [left] = arrray [right];
-				arrray [right] = tmp;
-			}
+			return (rightChild >= Count || _comparer.Compare (_backstore [leftChild], _backstore [rightChild]) > 0)
+				? leftChild
+				: rightChild;
 		}
 	}
 }
