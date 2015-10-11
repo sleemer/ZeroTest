@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace ZeroTransport
 {
-    public interface IInPin<out T> : IDisposable
+    public interface IPushSession<out T> : IDisposable
     {
         void Connect();
         void Disconnect();
         IObservable<T> Data { get; }
-        PinState State { get; }
+        SessionState State { get; }
     }
 }

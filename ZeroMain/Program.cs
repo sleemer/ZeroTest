@@ -19,7 +19,7 @@ namespace ZeroMain
             int counter = 0;
             var fpsTimer = Stopwatch.StartNew();
             Console.WriteLine("Getting images from camera on {0} thread.", Thread.CurrentThread.ManagedThreadId);
-            using (var inPin = (new ZeroFactory<ImagePacket>()).CreateInPin(address)) {
+            using (var inPin = (new ZeroSessionFactory<ImagePacket>()).CreatePushSession(address)) {
                 inPin.Data.ObserveOn(TaskPoolScheduler.Default).Subscribe(i => {
                     counter++;
                     if (fpsTimer.ElapsedMilliseconds >= 1000) {
@@ -31,7 +31,7 @@ namespace ZeroMain
                 inPin.Connect();
                 Console.WriteLine("started");
                 while (Console.ReadKey().Key != ConsoleKey.Escape) {
-                    if (inPin.State == PinState.Connected) {
+                    if (inPin.State == SessionState.Connected) {
                         inPin.Disconnect();
                         Console.WriteLine("stopped");
                     } else {

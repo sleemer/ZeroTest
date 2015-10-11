@@ -16,11 +16,11 @@ namespace ZeroCamera
             //int port = 9000;
             Console.WriteLine("Camera working...");
             var pictures = new FolderImageProvider(@"C:\Users\v_kovalev\Pictures").GetImageStream();
-            using (var outPin = (new ZeroFactory<ImagePacket>()).CreateOutPin(address, pictures)) {
+            using (var outPin = (new ZeroSessionFactory<ImagePacket>()).CreatePullSession(address, pictures)) {
                 outPin.Bind();
                 Console.WriteLine("started");
                 while (Console.ReadKey().Key != ConsoleKey.Escape) {
-                    if (outPin.State == PinState.Connected) {
+                    if (outPin.State == SessionState.Connected) {
                         outPin.Unbind();
                         Console.WriteLine("stopped");
                     } else {

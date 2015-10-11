@@ -9,14 +9,14 @@ using System.Diagnostics;
 
 namespace ZeroTransport
 {
-    public class ZeroSender<T> : IOutPin, IDisposable
+    public class ZeroPullSession<T> : IPullSession, IDisposable
     {
         private readonly IObservable<T> _source;
         private readonly string _address;
         private readonly PushSocket _socket;
         private IDisposable _subscription;
 
-        public ZeroSender(IObservable<T> source, string address, NetMQContext context)
+        public ZeroPullSession(IObservable<T> source, string address, NetMQContext context)
         {
             _source = source;
             _address = address;
@@ -24,9 +24,9 @@ namespace ZeroTransport
             _socket.Options.SendHighWatermark = 0;
         }
 
-        private PinState _state = PinState.Disconnected;
+        private SessionState _state = SessionState.Disconnected;
         private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
-        public PinState State
+        public SessionState State
         {
             get
             {
@@ -52,7 +52,7 @@ namespace ZeroTransport
 
         public void Bind()
         {
-            if (State == PinState.Connected) {
+            if (State == SessionState.Connected) {
                 throw new InvalidOperationException();
             }
             _socket.Bind(_address);
@@ -75,17 +75,17 @@ namespace ZeroTransport
                     Unbind();
                 }
             });
-            State = PinState.Connected;
+            State = SessionState.Connected;
         }
         public void Unbind()
         {
-            if (State == PinState.Disconnected) {
+            if (State == SessionState.Disconnected) {
                 throw new InvalidOperationException();
             }
             _subscription.Dispose();
             _subscription = null;
             _socket.Unbind(_address);
-            State = PinState.Disconnected;
+            State = SessionState.Disconnected;
         }
 
         #region Implementation of IDisposable

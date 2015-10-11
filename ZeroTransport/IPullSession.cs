@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace ZeroTransport
 {
-    interface IPinFactory<T>
+    public interface IPullSession : IDisposable
     {
-        IInPin<T> CreateInPin(string address);
-        IOutPin CreateOutPin(string address, IObservable<T> source);
+        void Bind();
+        void Unbind();
+        SessionState State { get; }
     }
 }

@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace ZeroTransport
 {
-    public interface IOutPin : IDisposable
+    public enum SessionState
     {
-        void Bind();
-        void Unbind();
-        PinState State { get; }
+        Connected,
+        Reconnecting,
+        Disconnected
     }
 }

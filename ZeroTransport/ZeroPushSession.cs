@@ -10,21 +10,21 @@ using System.Diagnostics;
 
 namespace ZeroTransport
 {
-    public class ZeroReceiver<T> : IInPin<T>, IDisposable
+    public class ZeroPushSession<T> : IPushSession<T>, IDisposable
     {
         private readonly Poller _poller = new Poller();
         private readonly PullSocket _socket;
         private readonly string _address;
         private readonly NetMQTimer _timeout;
 
-        internal ZeroReceiver(string address, NetMQContext mqContext)
+        internal ZeroPushSession(string address, NetMQContext mqContext)
         {
             _address = address;
             _socket = mqContext.CreatePullSocket();
             _socket.Options.ReceiveHighWatermark = 0;
             _timeout = new NetMQTimer(TimeSpan.FromSeconds(5));
             _timeout.Elapsed += (s, e) => {
-                if (State == PinState.Connected) {
+                if (State == SessionState.Connected) {
                     _socket.Disconnect(_address);
                     _socket.Connect(_address);
                 }
@@ -50,9 +50,9 @@ namespace ZeroTransport
         }
 
         public IObservable<T> Data { get; private set; }
-        private PinState _state = PinState.Disconnected;
+        private SessionState _state = SessionState.Disconnected;
         private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
-        public PinState State
+        public SessionState State
         {
             get
             {
@@ -77,22 +77,22 @@ namespace ZeroTransport
         }
         public void Connect()
         {
-            if (State == PinState.Connected) {
+            if (State == SessionState.Connected) {
                 throw new InvalidOperationException();
             }
             _timeout.Enable = true;
             _socket.Connect(_address);
-            State = PinState.Connected;
+            State = SessionState.Connected;
         }
 
         public void Disconnect()
         {
-            if (State == PinState.Disconnected) {
+            if (State == SessionState.Disconnected) {
                 throw new InvalidOperationException();
             }
             _timeout.Enable = false;
             _socket.Disconnect(_address);
-            State = PinState.Disconnected;
+            State = SessionState.Disconnected;
         }
 
         #region Implementation of IDisposable
