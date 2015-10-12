@@ -13,13 +13,13 @@ namespace ZeroMain
         public static void Main(string[] args)
         {
             //string address = "ipc:///pictures-from-camera";
-            string address = "tcp://localhost:9000";
+            string address = "tcp://127.0.0.1:9000";
             //string address = "127.0.0.1";
             //int port = 9000;
             int counter = 0;
             var fpsTimer = Stopwatch.StartNew();
             Console.WriteLine("Getting images from camera on {0} thread.", Thread.CurrentThread.ManagedThreadId);
-            using (var inPin = (new ZeroSessionFactory<ImagePacket>()).CreatePushSession(address)) {
+            using (var inPin = (new TcpSessionFactory<ImagePacket>()).CreatePushSession(address)) {
                 inPin.Data.ObserveOn(TaskPoolScheduler.Default).Subscribe(i => {
                     counter++;
                     if (fpsTimer.ElapsedMilliseconds >= 1000) {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -126,17 +127,17 @@ namespace ZeroMainWpf
             var timer = Stopwatch.StartNew();
             try {
                 CompositeDisposable disposable = new CompositeDisposable();
-                var pin = (new ZeroFactory<ImagePacket>()).CreateInPin(string.Format("tcp://{0}:{1}", ServerIP, ServerPort));
+                var pin = (new TcpSessionFactory<ImagePacket>()).CreatePushSession(string.Format("tcp://{0}:{1}", ServerIP, ServerPort));
                 disposable.Add(pin.Data
-                    .Sample(TimeSpan.FromMilliseconds(30))
-                    //.Select(packet => CreateBitmapFrame(packet.Image))
+                    .Sample(TimeSpan.FromMilliseconds(1000/35))
+                    .Select(packet => new { Packet = packet, Buffer = UpdateBuffer(packet.Image) })
                     .ObserveOnDispatcher()
                     .Subscribe(
                         img => {
                             if (CurrentImageFrame == null) {
-                                CurrentImageFrame = new WriteableBitmap(CreateBitmapFrame(img.Image));
+                                CurrentImageFrame = new WriteableBitmap(CreateBitmapFrame(img.Packet.Image));
                             } else {
-                                RenderBitmap(img.Image, CurrentImageFrame);
+                                RenderBitmap(img.Buffer, CurrentImageFrame);
                             }
                             counter++;
                             if (timer.ElapsedMilliseconds >= 1000) {
@@ -144,7 +145,7 @@ namespace ZeroMainWpf
                                 counter = 0;
                                 timer.Restart();
                             }
-                            Debug.WriteLine("shown {0} images", count++);
+                            Debug.WriteLine("timestamp={0}, total images={1}",img.Packet.Timestamp, count++);
                         },
                         ex => {
                             MessageBox.Show(ex.Message, "Error");
@@ -182,18 +183,27 @@ namespace ZeroMainWpf
                 return decoder.Frames[0];
             }
         }
-        private static int[] _buffer;
+        private static byte[] _buffer;
         private static Int32Rect _rect;
+        private static int _stride;
         private static void RenderBitmap(byte[] image, WriteableBitmap bitmap)
+        {
+            bitmap.WritePixels(_rect, image, _rect.Width * _stride, 0, 0);
+        }
+        private static byte[] UpdateBuffer(byte[] image)
         {
             using (var ms = new MemoryStream(image)) {
                 using (var img = new Bitmap(ms)) {
+                    _stride = Image.GetPixelFormatSize(img.PixelFormat) / 8;
                     if (_buffer == null) {
-                        _buffer = new int[img.Width * img.Height];
+                        _buffer = new byte[img.Width * img.Height * _stride];
                         _rect = new Int32Rect(0, 0, img.Width, img.Height);
                     }
-                    
-                    bitmap.WritePixels(_rect, _buffer, 4 * img.Width, 0);
+                    BitmapData bitmapData = img.LockBits(new Rectangle(0, 0, img.Width, img.Height), ImageLockMode.ReadWrite, img.PixelFormat);
+                    IntPtr intPtr = bitmapData.Scan0;
+                    Marshal.Copy(intPtr, _buffer, 0, _buffer.Length);
+                    img.UnlockBits(bitmapData);
+                    return _buffer;
                 }
             }
         }

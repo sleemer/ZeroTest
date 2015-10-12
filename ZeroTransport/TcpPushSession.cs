@@ -13,7 +13,7 @@ using System.Threading;
 
 namespace ZeroTransport
 {
-    public class TcpReceiver<T> : IDisposable
+    public class TcpPushSession<T> : IPushSession<T>, IDisposable
     {
         private readonly TcpClient _client;
         private readonly string _host;
@@ -21,7 +21,7 @@ namespace ZeroTransport
         private readonly Subject<T> _data = new Subject<T>();
         private IDisposable _subscription;
 
-        public TcpReceiver(string address, int port)
+        public TcpPushSession(string address, int port)
         {
             _client = new TcpClient();
             _host = address;
@@ -29,12 +29,37 @@ namespace ZeroTransport
         }
 
         public IObservable<T> Data { get { return _data.AsObservable(); } }
-
-        public void Start()
+        private SessionState _state = SessionState.Disconnected;
+        private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
+        public SessionState State
+        {
+            get
+            {
+                _stateLock.EnterReadLock();
+                try {
+                    return _state;
+                }
+                finally {
+                    _stateLock.ExitReadLock();
+                }
+            }
+            private set
+            {
+                _stateLock.EnterWriteLock();
+                try {
+                    _state = value;
+                }
+                finally {
+                    _stateLock.ExitWriteLock();
+                }
+            }
+        }
+        public void Connect()
         {
             _subscription = Observable.FromAsync(() => _client.ConnectAsync(_host, _port))
                 .ObserveOn(NewThreadScheduler.Default)
                 .Subscribe(_ => {
+                    State = SessionState.Connected;
 					Console.WriteLine("Getting data from network on {0} thread.", Thread.CurrentThread.ManagedThreadId);
                     var stream = _client.GetStream();
                     while (true) {
@@ -54,16 +79,17 @@ namespace ZeroTransport
                     }
                 });
         }
-        public void Stop()
+        public void Disconnect()
         {
             _subscription.Dispose();
             _subscription = null;
+            State = SessionState.Disconnected;
         }
 
         public void Dispose()
         {
             if (_subscription != null) {
-                Stop();
+                Disconnect();
             }
         }
     }

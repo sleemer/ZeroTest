@@ -57,9 +57,9 @@
     <Compile Include="ImageFolderProvider.cs" />
     <Compile Include="ImagePacket.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TcpFactory.cs" />
-    <Compile Include="TcpReceiver.cs" />
-    <Compile Include="TcpSender.cs" />
+    <Compile Include="TcpSessionFactory.cs" />
+    <Compile Include="TcpPushSession.cs" />
+    <Compile Include="TcpPullSession.cs" />
     <Compile Include="ZeroSessionFactory.cs" />
     <Compile Include="ZeroPullSession.cs" />
     <Compile Include="SessionState.cs" />

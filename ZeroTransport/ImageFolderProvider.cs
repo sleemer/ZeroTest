@@ -53,7 +53,9 @@ namespace ZeroTransport
             _currentImageIndex++;
             if (_currentImageIndex >= _images.Count)
                 _currentImageIndex = 0;
-            return _images[_currentImageIndex];
+            var img = _images[_currentImageIndex];
+            img.Timestamp = DateTime.Now;
+            return img;
         }
 
         #region Implementation of IDisposable

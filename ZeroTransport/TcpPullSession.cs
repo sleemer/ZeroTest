@@ -15,19 +15,49 @@ using System.Threading;
 
 namespace ZeroTransport
 {
-    public class TcpSender<T> : IDisposable
+    public class TcpPullSession<T> : IPullSession, IDisposable
     {
         private readonly IObservable<T> _source;
         private CancellationDisposable _subscription;
         private TcpListener _listener;
 
-        public TcpSender(IObservable<T> source, string address, int port)
+        public TcpPullSession(IObservable<T> source, string address, int port)
         {
 			_source = source;
             _listener = new TcpListener(IPAddress.Parse(address), port);
         }
-        public void Start()
+
+        private SessionState _state = SessionState.Disconnected;
+        private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
+        public SessionState State
         {
+            get
+            {
+                _stateLock.EnterReadLock();
+                try {
+                    return _state;
+                }
+                finally {
+                    _stateLock.ExitReadLock();
+                }
+            }
+            private set
+            {
+                _stateLock.EnterWriteLock();
+                try {
+                    _state = value;
+                }
+                finally {
+                    _stateLock.ExitWriteLock();
+                }
+            }
+        }
+        public void Bind()
+        {
+            if (State == SessionState.Connected) {
+                throw new InvalidOperationException();
+            }
+            State = SessionState.Connected;
 			Console.WriteLine("Sender started on {0} thread.", Thread.CurrentThread.ManagedThreadId);
             _subscription = new CancellationDisposable();
             _listener.Start();
@@ -37,11 +67,15 @@ namespace ZeroTransport
                     _source.Subscribe(item => SendPacket(stream, item), _subscription.Token);
                 }, _subscription.Token);
         }
-        public void Stop()
+        public void Unbind()
         {
+            if (State == SessionState.Disconnected) {
+                throw new InvalidOperationException();
+            }
             _listener.Stop();
             _subscription.Dispose();
             _subscription = null;
+            State = SessionState.Disconnected;
         }
 
         private void SendPacket(Stream stream, T packet)
@@ -61,7 +95,7 @@ namespace ZeroTransport
         public void Dispose()
         {
             if (_subscription != null) {
-                Stop();
+                Unbind();
             }
         }
 
