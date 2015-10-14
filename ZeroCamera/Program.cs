@@ -10,22 +10,24 @@ namespace ZeroCamera
     {
         public static void Main(string[] args)
         {
+			Trace.Listeners.Add (new ConsoleTraceListener ());
+
             //string address = "ipc:///pictures-from-camera";
             string address = "tcp://127.0.0.1:9000";
             //string address = "127.0.0.1";
             //int port = 9000;
-            Console.WriteLine("Camera working...");
-            var pictures = new FolderImageProvider(@"C:\Users\v_kovalev\Pictures").GetImageStream();
+			Trace.WriteLine("Camera working...");
+			var pictures = new FakeImageProvider().GetImageStream();
             using (var outPin = (new TcpSessionFactory<ImagePacket>()).CreatePullSession(address, pictures)) {
                 outPin.Bind();
-                Console.WriteLine("started");
+				Trace.WriteLine("started");
                 while (Console.ReadKey().Key != ConsoleKey.Escape) {
                     if (outPin.State == SessionState.Connected) {
                         outPin.Unbind();
-                        Console.WriteLine("stopped");
+						Trace.WriteLine("stopped");
                     } else {
                         outPin.Bind();
-                        Console.WriteLine("started");
+						Trace.WriteLine("started");
                     }
                 }
             }

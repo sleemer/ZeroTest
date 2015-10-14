@@ -9,7 +9,7 @@ namespace ZeroTransport
     public enum SessionState
     {
         Connected,
-        Reconnecting,
+        Connecting,
         Disconnected
     }
 }

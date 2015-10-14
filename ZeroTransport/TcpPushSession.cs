@@ -10,6 +10,7 @@ using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Diagnostics;
 
 namespace ZeroTransport
 {
@@ -48,6 +49,7 @@ namespace ZeroTransport
                 _stateLock.EnterWriteLock();
                 try {
                     _state = value;
+					Trace.WriteLine(string.Format("new state: {0}",_state));
                 }
                 finally {
                     _stateLock.ExitWriteLock();
@@ -56,13 +58,17 @@ namespace ZeroTransport
         }
         public void Connect()
         {
+			if (State == SessionState.Connected||State == SessionState.Connecting) {
+				throw new InvalidOperationException ();
+			}
+			State = SessionState.Connecting;
             _subscription = Observable.FromAsync(() => _client.ConnectAsync(_host, _port))
                 .ObserveOn(NewThreadScheduler.Default)
                 .Subscribe(_ => {
                     State = SessionState.Connected;
-					Console.WriteLine("Getting data from network on {0} thread.", Thread.CurrentThread.ManagedThreadId);
+					Trace.WriteLine(string.Format("Getting data from network on {0} thread.", Thread.CurrentThread.ManagedThreadId));
                     var stream = _client.GetStream();
-                    while (true) {
+					while (State == SessionState.Connected) {
                         try {
                             var item = Serializer.DeserializeWithLengthPrefix<T>(stream, PrefixStyle.Fixed32);
                             if (item == null) {
@@ -72,7 +78,7 @@ namespace ZeroTransport
                             _data.OnNext(item);
                         }
                         catch (Exception ex) {
-                            Console.WriteLine(ex.Message);
+							Trace.WriteLine(ex.Message);
                             _data.OnError(ex);
                             break;
                         }
@@ -81,6 +87,9 @@ namespace ZeroTransport
         }
         public void Disconnect()
         {
+			if (State == SessionState.Disconnected) {
+				throw new InvalidOperationException ();
+			}
             _subscription.Dispose();
             _subscription = null;
             State = SessionState.Disconnected;
