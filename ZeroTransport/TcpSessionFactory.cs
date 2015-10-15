@@ -31,5 +31,28 @@ namespace ZeroTransport
             }
             return new TcpPullSession<T>(source, parts[parts.Count() - 2].TrimStart('/'), int.Parse(parts[parts.Count()-1]));
         }
+        public ISubSession<T> CreateSubSession(string address)
+        {
+            if (string.IsNullOrWhiteSpace(address)) {
+                throw new ArgumentNullException("address");
+            }
+            var parts = address.Split(':');
+            if (parts.Count() < 2) {
+                throw new ArgumentException("Wrong format. Address expected in format 'ip:port'");
+            }
+            return new TcpSubSession<T>(parts[parts.Count() - 2].TrimStart('/'), int.Parse(parts[parts.Count() - 1]));
+        }
+
+        public IPubSession CreatePubSession(string address, IObservable<T> source)
+        {
+            if (string.IsNullOrWhiteSpace(address)) {
+                throw new ArgumentNullException("address");
+            }
+            var parts = address.Split(':');
+            if (parts.Count() < 2) {
+                throw new ArgumentException("Wrong format. Address expected in format 'ip:port'");
+            }
+            return new TcpPubSession<T>(source, parts[parts.Count() - 2].TrimStart('/'), int.Parse(parts[parts.Count() - 1]));
+        }
     }
 }

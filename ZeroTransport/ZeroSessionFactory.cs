@@ -18,6 +18,16 @@ namespace ZeroTransport
         {
             return new ZeroPullSession<T>(source, address, _mqContext);
         }
+
+        public ISubSession<T> CreateSubSession(string address)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IPubSession CreatePubSession(string address, IObservable<T> source)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
 

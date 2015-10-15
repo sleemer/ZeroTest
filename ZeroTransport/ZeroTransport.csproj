@@ -57,7 +57,7 @@
     <Compile Include="ISubSession.cs" />
     <Compile Include="TcpPubSession.cs" />
     <Compile Include="FileUtils.cs" />
-    <Compile Include="ImageFolderProvider.cs" />
+    <Compile Include="FolderImageProvider.cs" />
     <Compile Include="ImagePacket.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TcpSessionFactory.cs" />

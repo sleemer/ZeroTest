@@ -1,6 +1,7 @@
 ﻿using ProtoBuf;
 using System;
 using System.Net.Sockets;
+using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -51,7 +52,9 @@ namespace ZeroTransport
         }
         public void Start()
         {
-            _subscription = Observable.FromAsync(() => _client.ConnectAsync(_host, _port))
+            var connectionStream = Observable.FromAsync(() => _client.ConnectAsync(_host, _port));
+            _subscription = connectionStream
+                .Catch<Unit, Exception>(ex=>connectionStream.Delay(TimeSpan.FromSeconds(3)))
                 .ObserveOn(NewThreadScheduler.Default)
                 .Subscribe(_ => {
                     State = SessionState.Connected;
