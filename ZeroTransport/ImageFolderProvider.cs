@@ -24,7 +24,7 @@ namespace ZeroTransport
             _folder = folder;
             _imageStream = InitAsync(_cts.Token)
                 .ToObservable()
-                .SelectMany(_ => GetImageStreamFromCamera());
+				.SelectMany(_ => GenerateImageStream());
         }
 
         public IObservable<ImagePacket> GetImageStream()
@@ -41,7 +41,7 @@ namespace ZeroTransport
                 _images.Add(new ImagePacket { Image = image, Timestamp = DateTime.Now });
             }
         }
-        private IObservable<ImagePacket> GetImageStreamFromCamera()
+        private IObservable<ImagePacket> GenerateImageStream()
         {
             return Observable.Interval(TimeSpan.FromMilliseconds(1000 / 35))
                              .Select(x => GetNextImagePacket())
