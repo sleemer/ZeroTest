@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace ZeroTransport
 {
-    public sealed class TcpPubSession<T>: IPubSession, IDisposable
+    public sealed class TcpPubSession<T> : IPubSession, IDisposable
     {
         private readonly IObservable<T> _source;
         private CancellationDisposable _subscription;
@@ -61,10 +61,11 @@ namespace ZeroTransport
             _subscription = new CancellationDisposable();
             _listener.Start();
             Observable.FromAsync(() => _listener.AcceptTcpClientAsync())
-                .Subscribe(client => {
-                    var stream = client.GetStream();
-                    _source.Subscribe(item => SendPacket(stream, item), _subscription.Token);
-                }, _subscription.Token);
+                .Repeat()
+                .Subscribe(
+                    client => SendDataToClient(client),
+                    _subscription.Token
+                );
         }
         public void Stop()
         {
@@ -77,16 +78,42 @@ namespace ZeroTransport
             State = SessionState.Disconnected;
         }
 
-        private void SendPacket(Stream stream, T packet)
+        private void SendDataToClient(TcpClient client)
         {
-            try {
-                var watch = Stopwatch.StartNew();
-                Serializer.SerializeWithLengthPrefix(stream, packet, PrefixStyle.Fixed32);
-                Console.WriteLine("sent packet on {0:D2} it took {1}", Thread.CurrentThread.ManagedThreadId, watch.ElapsedMilliseconds);
+            var subscription = _subscription;
+            if(subscription == null) {
+                return;
             }
-            catch (Exception ex) {
-                Console.WriteLine(ex.Message);
-            }
+
+            var clientInfo = client.Client.RemoteEndPoint.ToString();
+            int fps = 0;
+            var stream = client.GetStream();
+            var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(_subscription.Token);
+            Stopwatch fpsTimer = Stopwatch.StartNew();
+            tokenSource.Token.Register(() => client.Close());
+            Trace.WriteLine(string.Format("new client from {0} connected", clientInfo));            
+            _source.Subscribe(
+                item => {
+                    try {
+                        Serializer.SerializeWithLengthPrefix(stream, item, PrefixStyle.Fixed32);
+                    }
+                    catch (Exception ex) {
+                        if (ex is IOException && ex.InnerException != null && ex.InnerException is SocketException) {
+                            Trace.WriteLine(string.Format("client from {0} disconnected", clientInfo));
+                        } else {
+                            Trace.TraceError(ex.Message);
+                        }
+                        tokenSource.Cancel();
+                    }
+                    fps++;
+                    if (fpsTimer.ElapsedMilliseconds >= 1000) {
+                        Trace.WriteLine(string.Format("sending fps {0} to client {1}", fps, clientInfo));
+                        fps = 0;
+                        fpsTimer.Restart();
+                    }
+                },
+                ex => tokenSource.Cancel(),
+                tokenSource.Token);
         }
 
         #region Implementation of IDisposable

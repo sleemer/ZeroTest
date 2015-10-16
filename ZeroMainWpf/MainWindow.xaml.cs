@@ -23,7 +23,9 @@ namespace ZeroMainWpf
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+            var viewModel = new MainViewModel();
+            DataContext = viewModel;
+            Closed += (s, e) => viewModel.ImageStreamClientViewModel.DisconnectCommand.Execute(null);
         }
     }
 }

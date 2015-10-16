@@ -1,5 +1,6 @@
 ﻿using ProtoBuf;
 using System;
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Reactive;
 using System.Reactive.Concurrency;
@@ -9,17 +10,16 @@ using System.Threading;
 
 namespace ZeroTransport
 {
-    public sealed class TcpSubSession<T>:ISubSession<T>, IDisposable
+    public sealed class TcpSubSession<T> : ISubSession<T>, IDisposable
     {
-        private readonly TcpClient _client;
         private readonly string _host;
         private readonly int _port;
         private readonly Subject<T> _data = new Subject<T>();
+        private TcpClient _client;
         private IDisposable _subscription;
 
         public TcpSubSession(string address, int port)
         {
-            _client = new TcpClient();
             _host = address;
             _port = port;
         }
@@ -52,35 +52,58 @@ namespace ZeroTransport
         }
         public void Start()
         {
-            var connectionStream = Observable.FromAsync(() => _client.ConnectAsync(_host, _port));
-            _subscription = connectionStream
-                .Catch<Unit, Exception>(ex=>connectionStream.Delay(TimeSpan.FromSeconds(3)))
+            if (State != SessionState.Disconnected) {
+                throw new InvalidOperationException();
+            }
+
+            StartInternal();
+        }
+
+        private void StartInternal()
+        {
+            State = SessionState.Connecting;
+            _client = new TcpClient();
+            _subscription = Observable.FromAsync(() => _client.ConnectAsync(_host, _port))
+                .Catch<Unit, Exception>(ex => Observable.FromAsync(() => _client.ConnectAsync(_host, _port)).Delay(TimeSpan.FromSeconds(3)))
                 .ObserveOn(NewThreadScheduler.Default)
                 .Subscribe(_ => {
                     State = SessionState.Connected;
-                    Console.WriteLine("Getting data from network on {0} thread.", Thread.CurrentThread.ManagedThreadId);
                     var stream = _client.GetStream();
                     while (true) {
                         try {
                             var item = Serializer.DeserializeWithLengthPrefix<T>(stream, PrefixStyle.Fixed32);
                             if (item == null) {
-                                _data.OnCompleted();
+                                if (State != SessionState.Disconnected) {
+                                    _subscription.Dispose();
+                                    StartInternal();
+                                }
                                 break;
                             }
                             _data.OnNext(item);
                         }
                         catch (Exception ex) {
-                            Console.WriteLine(ex.Message);
-                            _data.OnError(ex);
+                            if (State != SessionState.Disconnected) {
+                                Trace.WriteLine(ex.Message);
+                                _subscription.Dispose();
+                                StartInternal();
+                            }
                             break;
                         }
                     }
+                },
+                ex => {
+                    Trace.WriteLine(ex.Message);
                 });
         }
+
         public void Stop()
         {
+            if (State == SessionState.Disconnected) {
+                throw new InvalidOperationException();
+            }
+
+            _client.Close();
             _subscription.Dispose();
-            _subscription = null;
             State = SessionState.Disconnected;
         }
 
@@ -91,7 +114,7 @@ namespace ZeroTransport
             if (_subscription != null) {
                 Stop();
             }
-        } 
+        }
 
         #endregion
     }

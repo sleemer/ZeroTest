@@ -18,15 +18,15 @@ namespace ZeroCamera
             //int port = 9000;
 			Trace.WriteLine("Camera working...");
 			var pictures = new FolderImageProvider(@"C:\Users\v_kovalev\Pictures").GetImageStream();
-            using (var outPin = (new TcpSessionFactory<ImagePacket>()).CreatePullSession(address, pictures)) {
-                outPin.Bind();
+            using (var outPin = (new TcpSessionFactory<ImagePacket>()).CreatePubSession(address, pictures)) {
+                outPin.Start();
 				Trace.WriteLine("started");
                 while (Console.ReadKey().Key != ConsoleKey.Escape) {
                     if (outPin.State == SessionState.Connected) {
-                        outPin.Unbind();
+                        outPin.Stop();
 						Trace.WriteLine("stopped");
                     } else {
-                        outPin.Bind();
+                        outPin.Start();
 						Trace.WriteLine("started");
                     }
                 }

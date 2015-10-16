@@ -2,7 +2,7 @@
 
 namespace ZeroTransport
 {
-    public interface ISubSession<T>
+    public interface ISubSession<T> : IDisposable
     {
         void Start();
         void Stop();

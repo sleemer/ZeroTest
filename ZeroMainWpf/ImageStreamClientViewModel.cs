@@ -121,15 +121,19 @@ namespace ZeroMainWpf
         }
         private void Connect()
         {
+            if (!CanConnect()) {
+                return;
+            }
+
             IsBusy = true;
             int counter = 0;
             int count = 0;
             var timer = Stopwatch.StartNew();
             try {
                 CompositeDisposable disposable = new CompositeDisposable();
-                var pin = (new TcpSessionFactory<ImagePacket>()).CreatePushSession(string.Format("tcp://{0}:{1}", ServerIP, ServerPort));
+                var pin = (new TcpSessionFactory<ImagePacket>()).CreateSubSession(string.Format("tcp://{0}:{1}", ServerIP, ServerPort));
                 disposable.Add(pin.Data
-                    .Sample(TimeSpan.FromMilliseconds(1000/35))
+                    .Sample(TimeSpan.FromMilliseconds(1000 / 35))
                     .Select(packet => new { Packet = packet, Buffer = UpdateBuffer(packet.Image) })
                     .ObserveOnDispatcher()
                     .Subscribe(
@@ -145,14 +149,14 @@ namespace ZeroMainWpf
                                 counter = 0;
                                 timer.Restart();
                             }
-                            Debug.WriteLine("timestamp={0}, total images={1}",img.Packet.Timestamp, count++);
+                            Debug.WriteLine("timestamp={0}, total images={1}", img.Packet.Timestamp, count++);
                         },
                         ex => {
                             MessageBox.Show(ex.Message, "Error");
                             Disconnect();
                         }));
-                disposable.Add(Disposable.Create(() => pin.Disconnect()));
-                pin.Connect();
+                disposable.Add(Disposable.Create(() => pin.Stop()));
+                pin.Start();
                 _imageStreamSubscription = disposable;
             }
             catch (Exception ex) {
@@ -170,6 +174,10 @@ namespace ZeroMainWpf
         }
         private void Disconnect()
         {
+            if (!CanDisconnect()) {
+                return;
+            }
+
             _imageStreamSubscription.Dispose();
             _imageStreamSubscription = null;
             _connectCommand.RaiseCanExecute();
