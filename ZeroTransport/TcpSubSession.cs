@@ -7,115 +7,141 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Reactive.Disposables;
 
 namespace ZeroTransport
 {
-    public sealed class TcpSubSession<T> : ISubSession<T>, IDisposable
-    {
-        private readonly string _host;
-        private readonly int _port;
-        private readonly Subject<T> _data = new Subject<T>();
-        private TcpClient _client;
-        private IDisposable _subscription;
+	public sealed class TcpSubSession<T> : ISubSession<T>, IDisposable
+	{
+		private readonly string _host;
+		private readonly int _port;
+		private readonly Subject<T> _data = new Subject<T> ();
+		private IDisposable _subscription;
 
-        public TcpSubSession(string address, int port)
-        {
-            _host = address;
-            _port = port;
-        }
+		public TcpSubSession (string address, int port)
+		{
+			_host = address;
+			_port = port;
+		}
 
-        public IObservable<T> Data { get { return _data.AsObservable(); } }
-        private SessionState _state = SessionState.Disconnected;
-        private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
-        public SessionState State
-        {
-            get
-            {
-                _stateLock.EnterReadLock();
-                try {
-                    return _state;
-                }
-                finally {
-                    _stateLock.ExitReadLock();
-                }
-            }
-            private set
-            {
-                _stateLock.EnterWriteLock();
-                try {
-                    _state = value;
-                }
-                finally {
-                    _stateLock.ExitWriteLock();
-                }
-            }
-        }
-        public void Start()
-        {
-            if (State != SessionState.Disconnected) {
-                throw new InvalidOperationException();
-            }
+		public IObservable<T> Data { get { return _data.AsObservable (); } }
 
-            StartInternal();
-        }
+		private SessionState _state = SessionState.Disconnected;
+		private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim ();
 
-        private void StartInternal()
-        {
-            State = SessionState.Connecting;
-            _client = new TcpClient();
-            _subscription = Observable.FromAsync(() => _client.ConnectAsync(_host, _port))
-                .Catch<Unit, Exception>(ex => Observable.FromAsync(() => _client.ConnectAsync(_host, _port)).Delay(TimeSpan.FromSeconds(3)))
-                .ObserveOn(NewThreadScheduler.Default)
-                .Subscribe(_ => {
-                    State = SessionState.Connected;
-                    var stream = _client.GetStream();
-                    while (true) {
-                        try {
-                            var item = Serializer.DeserializeWithLengthPrefix<T>(stream, PrefixStyle.Fixed32);
-                            if (item == null) {
-                                if (State != SessionState.Disconnected) {
-                                    _subscription.Dispose();
-                                    StartInternal();
-                                }
-                                break;
-                            }
-                            _data.OnNext(item);
-                        }
-                        catch (Exception ex) {
-                            if (State != SessionState.Disconnected) {
-                                Trace.WriteLine(ex.Message);
-                                _subscription.Dispose();
-                                StartInternal();
-                            }
-                            break;
-                        }
-                    }
-                },
-                ex => {
-                    Trace.WriteLine(ex.Message);
-                });
-        }
+		public SessionState State {
+			get {
+				_stateLock.EnterReadLock ();
+				try {
+					return _state;
+				} finally {
+					_stateLock.ExitReadLock ();
+				}
+			}
+			private set {
+				_stateLock.EnterWriteLock ();
+				try {
+					_state = value;
+				} finally {
+					_stateLock.ExitWriteLock ();
+				}
+			}
+		}
 
-        public void Stop()
-        {
-            if (State == SessionState.Disconnected) {
-                throw new InvalidOperationException();
-            }
+		public void Start ()
+		{
+			if (State != SessionState.Disconnected) {
+				throw new InvalidOperationException ();
+			}
 
-            _client.Close();
-            _subscription.Dispose();
-            State = SessionState.Disconnected;
-        }
+			StartInternal ();
+		}
 
-        #region Implementation of IDisposable
+		private void StartInternal ()
+		{
+			var cancellationDisposable = new CancellationDisposable ();
+			var token = cancellationDisposable.Token;
+			Observable.FromAsync (() => GetActiveConnectionAsync (_host, _port, token))
+				.SelectMany (client => {
+					token.Register (() => client.Close ());
+					return GetDataFromConnection (client, token);
+				})
+				.Repeat ()
+                .ObserveOn (NewThreadScheduler.Default)
+				.Subscribe (
+					item => _data.OnNext (item),
+					ex => Trace.WriteLine (ex.Message),
+					token);
+			_subscription = cancellationDisposable;
+		}
 
-        public void Dispose()
-        {
-            if (_subscription != null) {
-                Stop();
-            }
-        }
+		private async Task<TcpClient> GetActiveConnectionAsync (string host, int port, CancellationToken token)
+		{
+			State = SessionState.Connecting;
+			var client = new TcpClient ();
+			while (!token.IsCancellationRequested) {
+				try {
+					await client.ConnectAsync (host, port);
+					State = SessionState.Connected;
+					return client;
+				} catch (Exception) {
+				}
+				try {
+					await Task.Delay (TimeSpan.FromSeconds (3), token);
+				} catch (OperationCanceledException) {
+					break;
+				}
+			}
+			return null;
+		}
 
-        #endregion
-    }
+		private static IObservable<T> GetDataFromConnection (TcpClient client, CancellationToken externalToken)
+		{
+			return Observable.Create<T> (o => {
+				var stream = client.GetStream ();
+				var cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+				var token = cts.Token;
+				var cancellationDisposable = new CancellationDisposable(cts);
+				Task.Run(()=>{
+					while (!token.IsCancellationRequested) {
+						try {
+							var item = Serializer.DeserializeWithLengthPrefix<T> (stream, PrefixStyle.Fixed32);
+							if (item == null) {
+								o.OnCompleted ();
+								break;
+							}
+							o.OnNext (item);
+						} catch (Exception ex) {
+							Trace.WriteLine (ex.Message);
+							o.OnCompleted ();
+							break;
+						}
+					}
+				}, token);
+				return cancellationDisposable;
+			});
+		}
+
+		public void Stop ()
+		{
+			if (State == SessionState.Disconnected) {
+				throw new InvalidOperationException ();
+			}
+				
+			_subscription.Dispose ();
+			State = SessionState.Disconnected;
+		}
+
+		#region Implementation of IDisposable
+
+		public void Dispose ()
+		{
+			if (_subscription != null) {
+				Stop ();
+			}
+		}
+
+		#endregion
+	}
 }

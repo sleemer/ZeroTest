@@ -17,17 +17,17 @@ namespace ZeroCamera
             //string address = "127.0.0.1";
             //int port = 9000;
 			Trace.WriteLine("Camera working...");
-			var pictures = new FolderImageProvider(@"C:\Users\v_kovalev\Pictures").GetImageStream();
+			var pictures = new FakeImageProvider().GetImageStream();
             using (var outPin = (new TcpSessionFactory<ImagePacket>()).CreatePubSession(address, pictures)) {
                 outPin.Start();
-				Trace.WriteLine("started");
+				Trace.TraceInformation("started");
                 while (Console.ReadKey().Key != ConsoleKey.Escape) {
                     if (outPin.State == SessionState.Connected) {
                         outPin.Stop();
-						Trace.WriteLine("stopped");
+						Trace.TraceInformation("stopped");
                     } else {
                         outPin.Start();
-						Trace.WriteLine("started");
+						Trace.TraceInformation("started");
                     }
                 }
             }

@@ -14,117 +14,116 @@ using System.Threading.Tasks;
 
 namespace ZeroTransport
 {
-    public sealed class TcpPubSession<T> : IPubSession, IDisposable
-    {
-        private readonly IObservable<T> _source;
-        private CancellationDisposable _subscription;
-        private TcpListener _listener;
+	public sealed class TcpPubSession<T> : IPubSession, IDisposable
+	{
+		private readonly IObservable<byte[]> _source;
+		private CancellationDisposable _subscription;
+		private TcpListener _listener;
 
-        public TcpPubSession(IObservable<T> source, string address, int port)
-        {
-            _source = source;
-            _listener = new TcpListener(IPAddress.Parse(address), port);
-        }
+		public TcpPubSession (IObservable<T> source, string address, int port)
+		{
+			_source = source.Select (item => {
+				using (var ms = new MemoryStream ()) {
+					Serializer.SerializeWithLengthPrefix (ms, item, PrefixStyle.Fixed32);
+					return ms.ToArray ();
+				}
+			});
+			_listener = new TcpListener (IPAddress.Parse (address), port);
+		}
 
-        private SessionState _state = SessionState.Disconnected;
-        private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim();
-        public SessionState State
-        {
-            get
-            {
-                _stateLock.EnterReadLock();
-                try {
-                    return _state;
-                }
-                finally {
-                    _stateLock.ExitReadLock();
-                }
-            }
-            private set
-            {
-                _stateLock.EnterWriteLock();
-                try {
-                    _state = value;
-                }
-                finally {
-                    _stateLock.ExitWriteLock();
-                }
-            }
-        }
-        public void Start()
-        {
-            if (State == SessionState.Connected) {
-                throw new InvalidOperationException();
-            }
-            State = SessionState.Connected;
-            Console.WriteLine("Sender started on {0} thread.", Thread.CurrentThread.ManagedThreadId);
-            _subscription = new CancellationDisposable();
-            _listener.Start();
-            Observable.FromAsync(() => _listener.AcceptTcpClientAsync())
-                .Repeat()
-                .Subscribe(
-                    client => SendDataToClient(client),
-                    _subscription.Token
-                );
-        }
-        public void Stop()
-        {
-            if (State == SessionState.Disconnected) {
-                throw new InvalidOperationException();
-            }
-            _listener.Stop();
-            _subscription.Dispose();
-            _subscription = null;
-            State = SessionState.Disconnected;
-        }
+		private SessionState _state = SessionState.Disconnected;
+		private ReaderWriterLockSlim _stateLock = new ReaderWriterLockSlim ();
 
-        private void SendDataToClient(TcpClient client)
-        {
-            var subscription = _subscription;
-            if(subscription == null) {
-                return;
-            }
+		public SessionState State {
+			get {
+				_stateLock.EnterReadLock ();
+				try {
+					return _state;
+				} finally {
+					_stateLock.ExitReadLock ();
+				}
+			}
+			private set {
+				_stateLock.EnterWriteLock ();
+				try {
+					_state = value;
+				} finally {
+					_stateLock.ExitWriteLock ();
+				}
+			}
+		}
 
-            var clientInfo = client.Client.RemoteEndPoint.ToString();
-            int fps = 0;
-            var stream = client.GetStream();
-            var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(_subscription.Token);
-            Stopwatch fpsTimer = Stopwatch.StartNew();
-            tokenSource.Token.Register(() => client.Close());
-            Trace.WriteLine(string.Format("new client from {0} connected", clientInfo));            
-            _source.Subscribe(
-                item => {
-                    try {
-                        Serializer.SerializeWithLengthPrefix(stream, item, PrefixStyle.Fixed32);
-                    }
-                    catch (Exception ex) {
-                        if (ex is IOException && ex.InnerException != null && ex.InnerException is SocketException) {
-                            Trace.WriteLine(string.Format("client from {0} disconnected", clientInfo));
-                        } else {
-                            Trace.TraceError(ex.Message);
-                        }
-                        tokenSource.Cancel();
-                    }
-                    fps++;
-                    if (fpsTimer.ElapsedMilliseconds >= 1000) {
-                        Trace.WriteLine(string.Format("sending fps {0} to client {1}", fps, clientInfo));
-                        fps = 0;
-                        fpsTimer.Restart();
-                    }
-                },
-                ex => tokenSource.Cancel(),
-                tokenSource.Token);
-        }
+		public void Start ()
+		{
+			if (State == SessionState.Connected) {
+				throw new InvalidOperationException ();
+			}
+			State = SessionState.Connected;
+			Trace.TraceInformation ("TcpPubSession started on {0}.", _listener.LocalEndpoint.ToString ());
+			_subscription = new CancellationDisposable ();
+			var token = _subscription.Token;
+			_listener.Start ();
+			Observable.FromAsync (() => _listener.AcceptTcpClientAsync ())
+                .Repeat ()
+                .Subscribe (
+				client => SendDataToClient (client, token),
+				token
+			);
+		}
 
-        #region Implementation of IDisposable
+		public void Stop ()
+		{
+			if (State == SessionState.Disconnected) {
+				throw new InvalidOperationException ();
+			}
+			_listener.Stop ();
+			_subscription.Dispose ();
+			_subscription = null;
+			State = SessionState.Disconnected;
+			Trace.TraceInformation ("TcpPubSession stopped on {0}.", _listener.LocalEndpoint.ToString ());
+		}
 
-        public void Dispose()
-        {
-            if (_subscription != null) {
-                Stop();
-            }
-        }
+		private void SendDataToClient (TcpClient client, CancellationToken subscriptionToken)
+		{
+			var clientInfo = client.Client.RemoteEndPoint.ToString ();
+			int fps = 0;
+			var stream = client.GetStream ();
+			var tokenSource = CancellationTokenSource.CreateLinkedTokenSource (subscriptionToken);
+			Stopwatch fpsTimer = Stopwatch.StartNew ();
+			tokenSource.Token.Register (() => client.Close ());
+			Trace.TraceInformation ("new client from {0} connected", clientInfo);            
+			_source.Subscribe (
+				async item => {
+					try {
+						await stream.WriteAsync (item, 0, item.Length);
+					} catch (Exception ex) {
+						if (ex is IOException && ex.InnerException != null && ex.InnerException is SocketException) {
+							Trace.TraceInformation ("client from {0} disconnected", clientInfo);
+						} else {
+							Trace.TraceError (ex.Message);
+						}
+						tokenSource.Cancel ();
+					}
+					fps++;
+					if (fpsTimer.ElapsedMilliseconds >= 1000) {
+						Trace.TraceInformation ("sending fps {0} to client {1}", fps, clientInfo);
+						fps = 0;
+						fpsTimer.Restart ();
+					}
+				},
+				ex => tokenSource.Cancel (),
+				tokenSource.Token);
+		}
 
-        #endregion
-    }
+		#region Implementation of IDisposable
+
+		public void Dispose ()
+		{
+			if (_subscription != null) {
+				Stop ();
+			}
+		}
+
+		#endregion
+	}
 }
