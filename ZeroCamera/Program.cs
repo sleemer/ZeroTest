@@ -17,7 +17,7 @@ namespace ZeroCamera
             //string address = "127.0.0.1";
             //int port = 9000;
 			Trace.WriteLine("Camera working...");
-			var pictures = new FakeImageProvider().GetImageStream();
+			var pictures = new FolderImageProvider(@"C:\Users\v_kovalev\Pictures").GetImageStream();
             using (var outPin = (new TcpSessionFactory<ImagePacket>()).CreatePubSession(address, pictures)) {
                 outPin.Start();
 				Trace.TraceInformation("started");

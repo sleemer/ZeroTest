@@ -20,9 +20,9 @@ namespace ZeroMain
             //int port = 9000;
 			int fps = 0;
             var fpsTimer = Stopwatch.StartNew();
-			Trace.TraceInformation("Getting images from camera on {0} thread.", Thread.CurrentThread.ManagedThreadId);
             using (var inPin = (new TcpSessionFactory<ImagePacket>()).CreateSubSession(address)) {
                 inPin.Data.ObserveOn(TaskPoolScheduler.Default).Subscribe(i => {
+                    Trace.TraceInformation(i.Timestamp.ToLocalTime().ToString());
                     fps++;
                     if (fpsTimer.ElapsedMilliseconds >= 1000) {
 						Trace.TraceInformation("{0:0.##} fps", fps);
@@ -31,14 +31,14 @@ namespace ZeroMain
                     }
                 });
                 inPin.Start();
-				Trace.TraceInformation("started");
+                Trace.TraceInformation("Started getting images from camera at {0}.", DateTimeOffset.Now.LocalDateTime);
                 while (Console.ReadKey().Key != ConsoleKey.Escape) {
                     if (inPin.State == SessionState.Connected) {
                         inPin.Stop();
 						Trace.TraceInformation("stopped");
                     } else {
                         inPin.Start();
-						Trace.TraceInformation("started");
+                        Trace.TraceInformation("Started getting images from camera at {0}.", DateTimeOffset.Now.LocalDateTime);
                     }
                 }
             }

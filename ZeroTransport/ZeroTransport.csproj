@@ -53,6 +53,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FixedConcurrentQueue.cs" />
     <Compile Include="IPubSession.cs" />
     <Compile Include="ISubSession.cs" />
     <Compile Include="TcpPubSession.cs" />

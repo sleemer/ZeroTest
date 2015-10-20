@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
@@ -18,6 +19,7 @@ namespace ZeroTransport
         private readonly string _folder;
         private CancellationTokenSource _cts = new CancellationTokenSource();
         private static string[] _supportedExts = new string[] { ".BMP", ".PNG", ".JPG" };
+        private readonly object _syncGetNextImage = new object();
 
         public FolderImageProvider(string folder)
         {
@@ -50,12 +52,14 @@ namespace ZeroTransport
         }
         private ImagePacket GetNextImagePacket()
         {
-            _currentImageIndex++;
-            if (_currentImageIndex >= _images.Count)
-                _currentImageIndex = 0;
-            var img = _images[_currentImageIndex];
-            img.Timestamp = DateTime.Now;
-            return img;
+            lock (_syncGetNextImage) {
+                _currentImageIndex++;
+                if (_currentImageIndex >= _images.Count)
+                    _currentImageIndex = 0;
+                var img = _images[_currentImageIndex];
+                img.Timestamp = DateTime.Now;
+                return img;
+            }
         }
 
         #region Implementation of IDisposable

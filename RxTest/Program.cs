@@ -3,73 +3,44 @@ using System.Reactive.Linq;
 using System.Reactive.Disposables;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Reactive.Concurrency;
+using System.Collections.Concurrent;
 
 namespace RxTest
 {
-	class MainClass
-	{
-		public static void Main (string[] args)
-		{
-			Console.WriteLine ("started");
-//			TestObservables ();
-			TestObservableFromAsync();
-			Console.ReadKey ();
-		}
+    class MainClass
+    {
+        public static void Main(string[] args)
+        {
+            Console.WriteLine("started");
+            TestReply();
+            Console.ReadKey();
+        }
 
-		private static async void TestObservableFromAsync()
-		{
-			var sub = CreateFromAsync ()
-				.Subscribe (i => Console.WriteLine (i));
-			await Task.Delay (2000);
-			sub.Dispose ();
-		}
-		private static async void TestObservables()
-		{
-			var stream = CreateStream ().Publish ();
-			var dis = stream.Connect ();
-			await Task.Delay (2000);
-			var sub1 = stream.Subscribe (i => Console.WriteLine ("sub1: {0}", i));
-			await Task.Delay (2000);
-			var sub2 = stream.Subscribe (i => Console.WriteLine ("sub2: {0}", i));
-			await Task.Delay (2000);
-			sub1.Dispose ();
-			await Task.Delay (2000);
-			sub2.Dispose ();
-			await Task.Delay (2000);
-			dis.Dispose ();
-		}
+        private static async void TestReply()
+        {
+            var stream = CreateWithBuffer(Observable.Interval(TimeSpan.FromMilliseconds(1000 / 7))
+                .Publish()
+                .RefCount(), 5);
+            var sub1 = stream.ObserveOn(NewThreadScheduler.Default).Subscribe(item => Console.WriteLine("sub1:{0}", item));
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            var sub2 = stream.ObserveOn(NewThreadScheduler.Default).Subscribe(item => Console.WriteLine("sub2:{0}", item));
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            sub1.Dispose();
+            sub2.Dispose();
+        }
 
-		private static int _next = 1;
-		private static async Task<int> GetIntAsync()
-		{
-			await Task.Delay (100);
-			return _next++;
-		}
-		private static IObservable<int> CreateFromAsync()
-		{
-			return Observable.FromAsync (GetIntAsync)
-				.Repeat ()
-				.Publish ()
-				.RefCount ();
-		}
-
-		private static IObservable<long> CreateStream()
-		{
-			return Observable.Create<long> (o => {
-				int subNumber = Interlocked.Increment(ref _subNumber);
-				Console.WriteLine("subsribing to internal subscription {0}", subNumber);
-				var sub = Observable.Interval (TimeSpan.FromSeconds (1))
-					.Do (i => Console.WriteLine ("do{0}: {1}",subNumber, i))
-					.Subscribe (o);
-				var disposable = Disposable.Create (() => {
-					Console.WriteLine ("internal subscription {0} disposed", subNumber);
-				});
-				var compositeDisposable = new CompositeDisposable ();
-				compositeDisposable.Add (sub);
-				compositeDisposable.Add (disposable);
-				return compositeDisposable;
-			});
-		}
-		private static int _subNumber = 0;
-	}
+        private static IObservable<T> CreateWithBuffer<T>(IObservable<T> source, int bufferLength)
+        {
+            var buffer = new FixedConcurrentQueue<T>(bufferLength);
+            source.ObserveOn(NewThreadScheduler.Default).Subscribe(item => buffer.Enqueue(item));
+            return Observable.Create<T>(o => {
+                var items = buffer.ToArray();
+                foreach (var item in items) {
+                    o.OnNext(item);
+                }
+                return new CompositeDisposable { source.Subscribe(o) };
+            });
+        }
+    }
 }
