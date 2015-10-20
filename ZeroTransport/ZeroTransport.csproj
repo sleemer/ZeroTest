@@ -53,29 +53,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FixedConcurrentQueue.cs" />
-    <Compile Include="IPubSession.cs" />
-    <Compile Include="ISubSession.cs" />
-    <Compile Include="TcpPubSession.cs" />
-    <Compile Include="FileUtils.cs" />
-    <Compile Include="FolderImageProvider.cs" />
-    <Compile Include="ImagePacket.cs" />
+    <Compile Include="Tcp\FixedConcurrentQueue.cs" />
+    <Compile Include="Tcp\TcpPubSession.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TcpSessionFactory.cs" />
-    <Compile Include="TcpPushSession.cs" />
-    <Compile Include="TcpPullSession.cs" />
-    <Compile Include="TcpSubSession.cs" />
-    <Compile Include="ZeroSessionFactory.cs" />
-    <Compile Include="ZeroPullSession.cs" />
-    <Compile Include="SessionState.cs" />
-    <Compile Include="ZeroPushSession.cs" />
-    <Compile Include="ISessionFactory.cs" />
-    <Compile Include="IPullSession.cs" />
-    <Compile Include="IPushSession.cs" />
-    <Compile Include="FakeImageProvider.cs" />
+    <Compile Include="Tcp\TcpSessionFactory.cs" />
+    <Compile Include="Tcp\TcpSubSession.cs" />
+    <Compile Include="Zero\ZeroSessionFactory.cs" />
+    <Compile Include="Zero\ZeroPullSession.cs" />
+    <Compile Include="Zero\ZeroPushSession.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ZeroCore\ZeroCore.csproj">
+      <Project>{ce095470-8e56-41cd-9b25-55eb3505a9ef}</Project>
+      <Name>ZeroCore</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>

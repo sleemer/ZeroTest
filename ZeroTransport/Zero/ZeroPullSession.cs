@@ -6,6 +6,7 @@ using System.IO;
 using ProtoBuf;
 using System.Threading;
 using System.Diagnostics;
+using ZeroCore.Contracts;
 
 namespace ZeroTransport
 {

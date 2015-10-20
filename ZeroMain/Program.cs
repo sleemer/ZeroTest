@@ -5,6 +5,8 @@ using System.Reactive.Concurrency;
 using System.Diagnostics;
 using System.Threading;
 using System.IO;
+using ZeroCore.Contracts;
+using ZeroCore;
 
 namespace ZeroMain
 {

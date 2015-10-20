@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ZeroTransport
+namespace ZeroCore.Contracts
 {
     public interface ISubSession<T> : IDisposable
     {

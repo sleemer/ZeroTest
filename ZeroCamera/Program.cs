@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Reactive.Linq;
+using ZeroCore;
+using ZeroCore.Contracts;
 using ZeroTransport;
 
 namespace ZeroCamera

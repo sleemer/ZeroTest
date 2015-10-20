@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace ZeroTransport
+namespace ZeroCore.Contracts
 {
-    interface ISessionFactory<T>
+    public interface ISessionFactory<T>
     {
         IPushSession<T> CreatePushSession(string address);
         IPullSession CreatePullSession(string address, IObservable<T> source);

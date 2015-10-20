@@ -1,5 +1,6 @@
 ﻿using System;
 using NetMQ;
+using ZeroCore.Contracts;
 
 namespace ZeroTransport
 {

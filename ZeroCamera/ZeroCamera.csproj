@@ -52,6 +52,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ZeroCore\ZeroCore.csproj">
+      <Project>{ce095470-8e56-41cd-9b25-55eb3505a9ef}</Project>
+      <Name>ZeroCore</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ZeroTransport\ZeroTransport.csproj">
       <Project>{7577B0C6-E08B-45D4-B781-5CC15D9FF8BB}</Project>
       <Name>ZeroTransport</Name>

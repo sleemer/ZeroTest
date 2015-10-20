@@ -9,6 +9,7 @@ using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Reactive.Disposables;
+using ZeroCore.Contracts;
 
 namespace ZeroTransport
 {

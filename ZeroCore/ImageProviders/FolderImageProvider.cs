@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ZeroCore.Contracts;
 
-namespace ZeroTransport
+namespace ZeroCore
 {
-    public class FolderImageProvider : IDisposable
+    public class FolderImageProvider : IImageProvider
     {
         private List<ImagePacket> _images = new List<ImagePacket>();
         private int _currentImageIndex = -1;
