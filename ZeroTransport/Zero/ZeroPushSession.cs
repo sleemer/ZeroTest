@@ -33,13 +33,11 @@ namespace ZeroTransport
             _poller.AddSocket(_socket);
             _poller.AddTimer(_timeout);
             _poller.PollTillCancelledNonBlocking();
-            int count = 0;
             Data = Observable.FromEvent<EventHandler<NetMQSocketEventArgs>, NetMQSocketEventArgs>(
                     handler => (s, e) => handler(e),
                     handler => _socket.ReceiveReady += handler,
                     handler => _socket.ReceiveReady -= handler)
                 .Select(_ => {
-                    Debug.WriteLine("received {0} packet", count++);
                     _timeout.Enable = false;
                     _timeout.Enable = true;
                     using (var ms = new MemoryStream(_socket.ReceiveFrameBytes())) {

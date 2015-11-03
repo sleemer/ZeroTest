@@ -58,6 +58,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Tcp\TcpSessionFactory.cs" />
     <Compile Include="Tcp\TcpSubSession.cs" />
+    <Compile Include="Zero\ZeroPubSession.cs" />
     <Compile Include="Zero\ZeroSessionFactory.cs" />
     <Compile Include="Zero\ZeroPullSession.cs" />
     <Compile Include="Zero\ZeroPushSession.cs" />
